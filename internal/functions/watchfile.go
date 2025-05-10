@@ -9,18 +9,12 @@ import (
 )
 
 func WatchFiles(filepaths []string, fn func(filename string)) chan struct{} {
-	notificationSender := apis.GetNotificationsSender()
+
 	fps, err := json.Marshal(filepaths)
 	if err != nil {
 		log.Fatal(err)
 	}
-	errs := notificationSender.Send("watching files "+string(fps), nil)
-	for _, err := range errs {
-		if err != nil {
-			log.Println(err)
-			// Non-fatal error when sending notification
-		}
-	}
+	apis.LogAndSendNotification("watching files " + string(fps))
 
 	// Create new file watcher.
 	watcher, err := fsnotify.NewWatcher()
@@ -29,8 +23,7 @@ func WatchFiles(filepaths []string, fn func(filename string)) chan struct{} {
 	}
 	go func() {
 		defer func() {
-			log.Println("watcher stopped")
-			notificationSender.Send("watcher stopped", nil)
+			apis.LogAndSendNotification("watcher stopped")
 		}()
 		for {
 			select {
@@ -53,8 +46,8 @@ func WatchFiles(filepaths []string, fn func(filename string)) chan struct{} {
 	for _, filepath := range filepaths {
 		err = watcher.Add(filepath)
 		if err != nil {
+			apis.LogAndSendNotification("failed to watch file " + filepath)
 			log.Fatal(err)
-			notificationSender.Send("failed to watch file "+filepath, nil)
 		}
 	}
 

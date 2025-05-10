@@ -25,8 +25,7 @@ func main() {
 	gracefullyStopWatcherChan <- struct{}{}
 	<-gracefullyStopWatcherChan
 
-	log.Println("Bye")
-	apis.GetNotificationsSender().Send("Bye", nil)
+	apis.LogAndSendNotification("bye")
 }
 
 func getFilesToWatch() []string {
