@@ -1,17 +1,93 @@
 package functions
 
 import (
+	"context"
 	"log"
+	"os"
+	"strings"
 
+	"github.com/bramvdbogaerde/go-scp"
+	"github.com/bramvdbogaerde/go-scp/auth"
+	"github.com/johnnylin-a/cert-sync/internal/apis"
 	"github.com/johnnylin-a/cert-sync/internal/configs"
+	"github.com/kevinburke/ssh_config"
+	"golang.org/x/crypto/ssh"
 )
 
+var syncQueue = make(chan string)
+
 func SyncPath(path string) {
-	log.Println("Sync " + path)
-	cfg := configs.GetAppConfig()
-	if syncCfg, ok := cfg.SyncFilePaths[path]; ok {
-		for _, v := range syncCfg {
-			log.Println("Will copy " + path + " on ssh host " + v.ConfigName + " to path " + v.Dst)
+	syncQueue <- path
+}
+
+func init() {
+	go func() {
+		f, err := os.Open(configs.GetAppConfig().DotSSHPath + "/config")
+		if err != nil {
+			log.Println("failed to read " + configs.GetAppConfig().DotSSHPath + "/config")
+			panic(err)
 		}
-	}
+		sshCfg, err := ssh_config.Decode(f)
+		if err != nil {
+			log.Println("failed to decode " + configs.GetAppConfig().DotSSHPath + "/config")
+			panic(err)
+		}
+		for {
+			updatedPath := <-syncQueue
+			apis.LogAndSendNotification("Syncing " + updatedPath)
+			appConfig := configs.GetAppConfig()
+			configHosts := appConfig.SyncFilePaths[updatedPath]
+			for _, configHost := range configHosts {
+				alias := configHost.ConfigHost
+				dst := configHost.Dst
+				port, _ := sshCfg.Get(alias, "Port")
+				hostname, _ := sshCfg.Get(alias, "HostName")
+				user, _ := sshCfg.Get(alias, "User")
+				privateKey, _ := sshCfg.Get(alias, "IdentityFile")
+				if strings.HasPrefix(privateKey, "~/.ssh/") {
+					privateKey = strings.ReplaceAll(privateKey, "~/.ssh", appConfig.DotSSHPath)
+				}
+				if privateKey == "" && configHost.PrivateKey != nil {
+					privateKey = *configHost.PrivateKey
+				}
+
+				if port == "" {
+					port = "22"
+				}
+
+				if user == "" {
+					user = "root"
+				}
+				log.Println("Syncing "+updatedPath+" to "+configHost.ConfigHost+":"+dst, alias, port, hostname, user, privateKey)
+				scpClientConfig, _ := auth.PrivateKey(user, privateKey, ssh.InsecureIgnoreHostKey())
+				scpClientConfig.HostKeyCallback = ssh.InsecureIgnoreHostKey()
+
+				scpClient := scp.NewClient(hostname+":"+port, &scpClientConfig)
+				err := scpClient.Connect()
+				if err != nil {
+					apis.LogAndSendNotification("Couldn't establish a connection to the remote server " + configHost.ConfigHost)
+					log.Println(err)
+					continue
+				}
+
+				// copy file over
+				f, err := os.Open(updatedPath)
+				if err != nil {
+					apis.LogAndSendNotification("Couldn't open local file " + updatedPath)
+					scpClient.Close()
+					continue
+				}
+				err = scpClient.CopyFile(context.Background(), f, dst, "0644")
+				if err != nil {
+					apis.LogAndSendNotification("Couldn't copy file " + updatedPath + " to " + configHost.ConfigHost + ":" + dst)
+					scpClient.Close()
+					f.Close()
+					continue
+				}
+				apis.LogAndSendNotification("Copied " + updatedPath + " to " + configHost.ConfigHost + ":" + dst)
+				scpClient.Close()
+				f.Close()
+			}
+		}
+	}()
 }

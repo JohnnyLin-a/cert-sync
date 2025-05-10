@@ -10,8 +10,9 @@ type AppConfig struct {
 	DotSSHPath    string   `yaml:"dot-ssh-path"`
 	Notifications []string `yaml:"notifications"`
 	SyncFilePaths map[string][]struct {
-		ConfigName string `yaml:"config-name"`
-		Dst        string `yaml:"dst"`
+		ConfigHost string  `yaml:"config-host"`
+		Dst        string  `yaml:"dst"`
+		PrivateKey *string `yaml:"private-key"`
 	} `yaml:"sync-file-paths"`
 }
 

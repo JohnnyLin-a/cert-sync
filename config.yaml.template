@@ -1,6 +1,6 @@
 dot-ssh-path: .ssh
 notifications: []
 sync-file-paths:
-  - "./dummy.txt":
-      - config-name: remote-ssh-server
-        dst: dummy.txt
+  dummy.txt: # must not be in ./ notation
+    - config-name: remote-ssh-server
+      dst: dummy.txt

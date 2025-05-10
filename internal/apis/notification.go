@@ -18,10 +18,6 @@ func init() {
 	notification = n
 }
 
-func GetNotificationsSender() *router.ServiceRouter {
-	return notification
-}
-
 func LogAndSendNotification(s string) {
 	log.Println(s)
 	errs := notification.Send(s, nil)
