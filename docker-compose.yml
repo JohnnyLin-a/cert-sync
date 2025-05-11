@@ -5,6 +5,6 @@ services:
     #   context: .
     restart: unless-stopped
     volumes:
-      - /etc/letsencrypt:/etc/letsencrypt
-      - ./config.yaml:/config.yaml
-      - "$HOME/.ssh:/.ssh"
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./config.yaml:/config.yaml:ro
+      - ./.ssh:/.ssh:ro
