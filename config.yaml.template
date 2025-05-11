@@ -1,6 +1,17 @@
 dot-ssh-path: .ssh
 notifications: []
 sync-file-paths:
-  dummy.txt: # must not be in ./ notation
-    - config-name: remote-ssh-server
-      dst: dummy.txt
+  /etc/letsencrypt/live/your-domain.xyz/fullchain.pem:
+    - config-host: remote1
+      dst: /etc/letsencrypt/your-domain.xyz/fullchain.pem
+    - config-host: remote2
+      dst: /etc/letsencrypt/your-domain.xyz/fullchain.pem
+    - config-host: remote3
+      dst: /etc/letsencrypt/your-domain.xyz/fullchain.pem
+  /etc/letsencrypt/live/your-domain.xyz/privkey.pem:
+    - config-host: remote1
+      dst: /etc/letsencrypt/live/your-domain.xyz/privkey.pem
+    - config-host: remote2
+      dst: /etc/letsencrypt/live/your-domain.xyz/privkey.pem
+    - config-host: remote3
+      dst: /etc/letsencrypt/live/your-domain.xyz/privkey.pem
