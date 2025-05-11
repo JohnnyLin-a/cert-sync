@@ -12,6 +12,7 @@ import (
 	"github.com/johnnylin-a/cert-sync/internal/configs"
 	"github.com/kevinburke/ssh_config"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
 )
 
 var syncQueue = make(chan string)
@@ -31,6 +32,11 @@ func init() {
 		if err != nil {
 			log.Println("failed to decode " + configs.GetAppConfig().DotSSHPath + "/config")
 			panic(err)
+		}
+		sshKnownHosts, err := knownhosts.New(configs.GetAppConfig().DotSSHPath + "/known_hosts")
+		if err != nil {
+			apis.LogAndSendNotification("WARNING: failed to read " + configs.GetAppConfig().DotSSHPath + "/known_hosts and will allow all server fingerprints!")
+			sshKnownHosts = ssh.InsecureIgnoreHostKey()
 		}
 		for {
 			updatedPath := <-syncQueue
@@ -59,11 +65,27 @@ func init() {
 					user = "root"
 				}
 				log.Println("Syncing "+updatedPath+" to "+configHost.ConfigHost+":"+dst, alias, port, hostname, user, privateKey)
-				scpClientConfig, _ := auth.PrivateKey(user, privateKey, ssh.InsecureIgnoreHostKey())
-				scpClientConfig.HostKeyCallback = ssh.InsecureIgnoreHostKey()
+				scpClientConfig, _ := auth.PrivateKey(user, privateKey, sshKnownHosts)
+				scpClientConfig.HostKeyCallback = sshKnownHosts
+
+				privateKeyValue, err := os.ReadFile(privateKey)
+				if err != nil {
+					apis.LogAndSendNotification("Couldn't read private key file " + privateKey)
+					log.Println(err)
+					continue
+				}
+				signer, err := ssh.ParsePrivateKey(privateKeyValue)
+				if err != nil {
+					apis.LogAndSendNotification("Couldn't parse private key content " + privateKey)
+					log.Println(err)
+					continue
+				}
+				scpClientConfig.Auth = []ssh.AuthMethod{
+					ssh.PublicKeys(signer),
+				}
 
 				scpClient := scp.NewClient(hostname+":"+port, &scpClientConfig)
-				err := scpClient.Connect()
+				err = scpClient.Connect()
 				if err != nil {
 					apis.LogAndSendNotification("Couldn't establish a connection to the remote server " + configHost.ConfigHost)
 					log.Println(err)
