@@ -1,9 +1,9 @@
 services:
   app:
-    volumes:
-      - ./config.yaml:/config.yaml
     image: ghcr.io/johnnylin-a/cert-sync:latest
     # build:
     #   context: .
     restart: unless-stopped
-    
+    volumes:
+      - ./config.yaml:/config.yaml
+      - "$HOME/.ssh:/.ssh"
