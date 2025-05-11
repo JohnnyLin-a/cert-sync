@@ -27,5 +27,6 @@ func init() {
 }
 
 func GetAppConfig() AppConfig {
+
 	return cfg
 }

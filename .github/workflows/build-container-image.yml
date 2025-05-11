@@ -5,6 +5,7 @@ on:
     branches: ["master"]
     paths:
       - Dockerfile
+      - "*/**/*.go"
   workflow_dispatch:
 
 jobs:
