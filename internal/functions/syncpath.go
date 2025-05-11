@@ -96,12 +96,14 @@ func init() {
 				f, err := os.Open(updatedPath)
 				if err != nil {
 					apis.LogAndSendNotification("Couldn't open local file " + updatedPath)
+					log.Println(err)
 					scpClient.Close()
 					continue
 				}
 				err = scpClient.CopyFile(context.Background(), f, dst, "0644")
 				if err != nil {
 					apis.LogAndSendNotification("Couldn't copy file " + updatedPath + " to " + configHost.ConfigHost + ":" + dst)
+					log.Println(err)
 					scpClient.Close()
 					f.Close()
 					continue
